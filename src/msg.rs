@@ -60,7 +60,7 @@ pub enum MsgError {
 
 pub type Result<T> = std::result::Result<T, MsgError>;
 
-const MAX_PAYLOAD_LENGTH: usize = 256 * 1024;
+const MAX_PAYLOAD_LENGTH: usize = 8 * 1024 * 1024;
 
 const MONERO_GENESIS_HASH: [u8; 32] = [
     0x41, 0x80, 0x15, 0xbb, 0x9a, 0xe9, 0x82, 0xa1,
