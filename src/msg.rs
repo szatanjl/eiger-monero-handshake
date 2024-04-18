@@ -1,5 +1,6 @@
 mod handshake;
 mod raw_header;
+mod support_flags;
 
 use handshake::Handshake;
 pub use raw_header::RawHeader;
@@ -8,6 +9,7 @@ use std::{
     io::{Error as IoError, Read, Write},
     net::TcpStream,
 };
+use support_flags::SupportFlags;
 use thiserror::Error;
 
 #[derive(Debug)]
@@ -27,6 +29,7 @@ pub enum MsgType {
 #[derive(Debug)]
 pub enum MsgData {
     Handshake(Handshake),
+    SupportFlags(SupportFlags),
     Unknown { command: u32, data: Vec<u8> },
 }
 
@@ -46,6 +49,8 @@ pub enum MsgError {
     InvalidResponse(RawHeader),
     #[error("Invalid handshake command")]
     InvalidHandshake(Vec<u8>, SerdeError),
+    #[error("Invalid support flags command")]
+    InvalidSupportFlags(Vec<u8>, SerdeError),
 }
 
 type Result<T> = std::result::Result<T, MsgError>;
@@ -94,6 +99,11 @@ impl Msg {
                     .map_err(|e| MsgError::InvalidHandshake(data, e))?;
                 MsgData::Handshake(data)
             },
+            1007 => {
+                let data = serde_epee::from_bytes(&mut data.as_slice())
+                    .map_err(|e| MsgError::InvalidSupportFlags(data, e))?;
+                MsgData::SupportFlags(data)
+            },
             command => MsgData::Unknown { command, data },
         };
 
@@ -103,6 +113,7 @@ impl Msg {
     fn to_bytes(&self) -> Vec<u8> {
         let (command, data) = match &self.msg_data {
             MsgData::Handshake(data) => (1001, serde_epee::to_bytes(data).unwrap()),
+            MsgData::SupportFlags(data) => (1007, serde_epee::to_bytes(data).unwrap()),
             MsgData::Unknown { command, data } => (*command, data.clone()),
         };
 
