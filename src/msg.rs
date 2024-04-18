@@ -1,6 +1,7 @@
 mod handshake;
 mod raw_header;
 mod support_flags;
+mod timed_sync;
 
 use handshake::Handshake;
 pub use raw_header::RawHeader;
@@ -11,6 +12,7 @@ use std::{
 };
 use support_flags::SupportFlags;
 use thiserror::Error;
+use timed_sync::TimedSync;
 
 #[derive(Debug)]
 pub struct Msg {
@@ -29,6 +31,7 @@ pub enum MsgType {
 #[derive(Debug)]
 pub enum MsgData {
     Handshake(Handshake),
+    TimedSync(TimedSync),
     SupportFlags(SupportFlags),
     Unknown { command: u32, data: Vec<u8> },
 }
@@ -49,6 +52,8 @@ pub enum MsgError {
     InvalidResponse(RawHeader),
     #[error("Invalid handshake command")]
     InvalidHandshake(Vec<u8>, SerdeError),
+    #[error("Invalid timed sync command")]
+    InvalidTimedSync(Vec<u8>, SerdeError),
     #[error("Invalid support flags command")]
     InvalidSupportFlags(Vec<u8>, SerdeError),
 }
@@ -56,6 +61,13 @@ pub enum MsgError {
 pub type Result<T> = std::result::Result<T, MsgError>;
 
 const MAX_PAYLOAD_LENGTH: usize = 256 * 1024;
+
+const MONERO_GENESIS_HASH: [u8; 32] = [
+    0x41, 0x80, 0x15, 0xbb, 0x9a, 0xe9, 0x82, 0xa1,
+    0x97, 0x5d, 0xa7, 0xd7, 0x92, 0x77, 0xc2, 0x70,
+    0x57, 0x27, 0xa5, 0x68, 0x94, 0xba, 0x0f, 0xb2,
+    0x46, 0xad, 0xaa, 0xbb, 0x1f, 0x46, 0x32, 0xe3,
+];
 
 impl Msg {
     pub fn recv(stream: &mut TcpStream) -> Result<Self> {
@@ -99,6 +111,11 @@ impl Msg {
                     .map_err(|e| MsgError::InvalidHandshake(data, e))?;
                 MsgData::Handshake(data)
             },
+            1002 => {
+                let data = serde_epee::from_bytes(&mut data.as_slice())
+                    .map_err(|e| MsgError::InvalidTimedSync(data, e))?;
+                MsgData::TimedSync(data)
+            },
             1007 => {
                 let data = serde_epee::from_bytes(&mut data.as_slice())
                     .map_err(|e| MsgError::InvalidSupportFlags(data, e))?;
@@ -113,6 +130,7 @@ impl Msg {
     fn to_bytes(&self) -> Vec<u8> {
         let (command, data) = match &self.msg_data {
             MsgData::Handshake(data) => (1001, serde_epee::to_bytes(data).unwrap()),
+            MsgData::TimedSync(data) => (1002, serde_epee::to_bytes(data).unwrap()),
             MsgData::SupportFlags(data) => (1007, serde_epee::to_bytes(data).unwrap()),
             MsgData::Unknown { command, data } => (*command, data.clone()),
         };
