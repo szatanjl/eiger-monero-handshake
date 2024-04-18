@@ -12,6 +12,14 @@ fn handle_request(stream: &mut TcpStream, req: MsgData) -> Result<()> {
         MsgData::Handshake(_data) => Msg::cmd_handshake(Some(1)).send(stream),
         MsgData::TimedSync(_data) => Msg::cmd_timed_sync(Some(1)).send(stream),
         MsgData::SupportFlags(_data) => Msg::cmd_support_flags(Some(1)).send(stream),
+        MsgData::NewBlock => {
+            eprintln!("ERR: NewBlock command sent as Request, it should be a Notification.  Not responding.");
+            Ok(())
+        },
+        MsgData::NewTransactions => {
+            eprintln!("ERR: NewTransactions command sent as Request, it should be a Notification.  Not responding.");
+            Ok(())
+        },
         MsgData::Unknown { command, .. } => {
             eprintln!("WARN: Unknown request command: {}.  Not responding.", command);
             Ok(())

@@ -33,6 +33,9 @@ pub enum MsgData {
     Handshake(Handshake),
     TimedSync(TimedSync),
     SupportFlags(SupportFlags),
+    // TODO: (De)serialize payload for these commands
+    NewBlock,
+    NewTransactions,
     Unknown { command: u32, data: Vec<u8> },
 }
 
@@ -121,6 +124,8 @@ impl Msg {
                     .map_err(|e| MsgError::InvalidSupportFlags(data, e))?;
                 MsgData::SupportFlags(data)
             },
+            2001 => MsgData::NewBlock,
+            2002 => MsgData::NewTransactions,
             command => MsgData::Unknown { command, data },
         };
 
@@ -132,6 +137,8 @@ impl Msg {
             MsgData::Handshake(data) => (1001, serde_epee::to_bytes(data).unwrap()),
             MsgData::TimedSync(data) => (1002, serde_epee::to_bytes(data).unwrap()),
             MsgData::SupportFlags(data) => (1007, serde_epee::to_bytes(data).unwrap()),
+            MsgData::NewBlock => todo!(),
+            MsgData::NewTransactions => todo!(),
             MsgData::Unknown { command, data } => (*command, data.clone()),
         };
 
