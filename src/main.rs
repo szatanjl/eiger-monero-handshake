@@ -2,10 +2,11 @@ mod msg;
 
 use msg::{Msg, MsgData, MsgType, Result};
 use std::{
-    net::{SocketAddr, TcpStream},
-    str::FromStr,
+    net::{TcpStream, ToSocketAddrs},
     time::Duration,
 };
+
+const DEFAULT_NODE: &str = "node.moneroworld.com:18080";
 
 fn handle_request(stream: &mut TcpStream, req: MsgData) -> Result<()> {
     match req {
@@ -28,10 +29,16 @@ fn handle_request(stream: &mut TcpStream, req: MsgData) -> Result<()> {
 }
 
 fn main() {
-    let addr = SocketAddr::from_str("127.0.0.1:18080").unwrap();
+    let mut args = std::env::args();
+    args.next();
+    let addr = args.next();
+    let addr = addr.as_deref().unwrap_or(DEFAULT_NODE);
+    let addr_resolved = addr.to_socket_addrs().unwrap().next().unwrap();
+
     let timeout = Duration::from_secs(30);
 
-    let mut stream = TcpStream::connect_timeout(&addr, timeout).unwrap();
+    println!("Connecting to {} ({})", addr, addr_resolved);
+    let mut stream = TcpStream::connect_timeout(&addr_resolved, timeout).unwrap();
     stream.set_write_timeout(Some(timeout)).unwrap();
 
     Msg::cmd_handshake(None).send(&mut stream).unwrap();
