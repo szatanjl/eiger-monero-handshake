@@ -16,6 +16,9 @@ pub struct Msg {
 
 #[derive(Debug)]
 pub enum MsgType {
+    Notification,
+    Request,
+    Response { return_code: u32 },
     Unknown { expect_response: u8, return_code: u32, flags: u32 },
 }
 
@@ -34,6 +37,10 @@ pub enum MsgError {
     InvalidHeader(RawHeader),
     #[error("Message exceeds maximum allowed length")]
     TooLong(RawHeader),
+    #[error("Invalid request")]
+    InvalidRequest(RawHeader),
+    #[error("Invalid response")]
+    InvalidResponse(RawHeader),
 }
 
 type Result<T> = std::result::Result<T, MsgError>;
@@ -65,12 +72,19 @@ impl Msg {
     }
 
     fn from_raw_parts(header: RawHeader, data: Vec<u8>) -> Result<Self> {
-        Ok(Self {
-            msg_type: MsgType::Unknown {
-                expect_response: header.expect_response,
-                return_code: header.return_code,
-                flags: header.flags,
+        let msg_type = match (header.expect_response, header.return_code, header.flags) {
+            (0, 0, 1) => MsgType::Notification,
+            (_, 0, 1) => MsgType::Request,
+            (_, _, 1) => return Err(MsgError::InvalidRequest(header)),
+            (0, return_code, 2) => MsgType::Response { return_code },
+            (_, _, 2) => return Err(MsgError::InvalidResponse(header)),
+            (expect_response, return_code, flags) => {
+                MsgType::Unknown { expect_response, return_code, flags }
             },
+        };
+
+        Ok(Self {
+            msg_type,
             msg_data: MsgData::Unknown {
                 command: header.command,
                 data,
@@ -84,6 +98,9 @@ impl Msg {
         };
 
         let (expect_response, return_code, flags) = match self.msg_type {
+            MsgType::Notification => (0, 0, 1),
+            MsgType::Request => (1, 0, 1),
+            MsgType::Response { return_code } => (0, return_code, 2),
             MsgType::Unknown { expect_response, return_code, flags } => {
                 (expect_response, return_code, flags)
             },

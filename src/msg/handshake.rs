@@ -51,11 +51,7 @@ impl Msg {
         };
 
         Self {
-            msg_type: MsgType::Unknown {
-                expect_response: 1,
-                return_code: 0,
-                flags: 1,
-            },
+            msg_type: MsgType::Request,
             msg_data: MsgData::Unknown {
                 command: 1001,
                 data: serde_epee::to_bytes(&data).unwrap(),
