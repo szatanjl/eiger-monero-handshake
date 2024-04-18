@@ -1,7 +1,9 @@
 mod handshake;
 mod raw_header;
 
+use handshake::Handshake;
 pub use raw_header::RawHeader;
+use serde_epee::Error as SerdeError;
 use std::{
     io::{Error as IoError, Read, Write},
     net::TcpStream,
@@ -24,6 +26,7 @@ pub enum MsgType {
 
 #[derive(Debug)]
 pub enum MsgData {
+    Handshake(Handshake),
     Unknown { command: u32, data: Vec<u8> },
 }
 
@@ -41,6 +44,8 @@ pub enum MsgError {
     InvalidRequest(RawHeader),
     #[error("Invalid response")]
     InvalidResponse(RawHeader),
+    #[error("Invalid handshake command")]
+    InvalidHandshake(Vec<u8>, SerdeError),
 }
 
 type Result<T> = std::result::Result<T, MsgError>;
@@ -83,17 +88,21 @@ impl Msg {
             },
         };
 
-        Ok(Self {
-            msg_type,
-            msg_data: MsgData::Unknown {
-                command: header.command,
-                data,
+        let msg_data = match header.command {
+            1001 => {
+                let data = serde_epee::from_bytes(&mut data.as_slice())
+                    .map_err(|e| MsgError::InvalidHandshake(data, e))?;
+                MsgData::Handshake(data)
             },
-        })
+            command => MsgData::Unknown { command, data },
+        };
+
+        Ok(Self { msg_type, msg_data })
     }
 
     fn to_bytes(&self) -> Vec<u8> {
         let (command, data) = match &self.msg_data {
+            MsgData::Handshake(data) => (1001, serde_epee::to_bytes(data).unwrap()),
             MsgData::Unknown { command, data } => (*command, data.clone()),
         };
 
