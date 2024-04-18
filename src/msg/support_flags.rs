@@ -8,13 +8,18 @@ pub struct SupportFlags {
 }
 
 impl Msg {
-    pub fn cmd_support_flags() -> Self {
+    pub fn cmd_support_flags(return_code: Option<u32>) -> Self {
+        let msg_type = match return_code {
+            Some(return_code) => MsgType::Response { return_code },
+            None => MsgType::Request,
+        };
+
         let data = SupportFlags {
             support_flags: 0,
         };
 
         Self {
-            msg_type: MsgType::Request,
+            msg_type,
             msg_data: MsgData::SupportFlags(data),
         }
     }

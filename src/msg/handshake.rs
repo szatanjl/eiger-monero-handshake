@@ -76,7 +76,12 @@ impl TryFrom<Section> for PayloadData {
 }
 
 impl Msg {
-    pub fn cmd_handshake() -> Self {
+    pub fn cmd_handshake(return_code: Option<u32>) -> Self {
+        let msg_type = match return_code {
+            Some(return_code) => MsgType::Response { return_code },
+            None => MsgType::Request,
+        };
+
         let data = Handshake {
             node_data: NodeData {
                 network_id: MAINNET,
@@ -93,7 +98,7 @@ impl Msg {
         };
 
         Self {
-            msg_type: MsgType::Request,
+            msg_type,
             msg_data: MsgData::Handshake(data),
         }
     }

@@ -14,8 +14,8 @@ use thiserror::Error;
 
 #[derive(Debug)]
 pub struct Msg {
-    msg_type: MsgType,
-    msg_data: MsgData,
+    pub msg_type: MsgType,
+    pub msg_data: MsgData,
 }
 
 #[derive(Debug)]
@@ -53,7 +53,7 @@ pub enum MsgError {
     InvalidSupportFlags(Vec<u8>, SerdeError),
 }
 
-type Result<T> = std::result::Result<T, MsgError>;
+pub type Result<T> = std::result::Result<T, MsgError>;
 
 const MAX_PAYLOAD_LENGTH: usize = 256 * 1024;
 
